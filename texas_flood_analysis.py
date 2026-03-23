@@ -15,7 +15,7 @@ Outputs (written to ./outputs/):
   • texas_flood_summary.csv             – cleaned merged dataset
 """
 
-# ── 0. Imports & config ────────────────────────────────────────────────────────
+# Imports from library 
 import warnings, os, time
 warnings.filterwarnings("ignore")
 
@@ -49,9 +49,8 @@ CRS_WGS     = "EPSG:4326"
 
 print("Imports are ok")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. TEXAS COUNTY BOUNDARIES
-# ─────────────────────────────────────────────────────────────────────────────
+
+# TEXAS COUNTY BOUNDARIES
 def get_texas_counties() -> gpd.GeoDataFrame:
     """Download Texas county polygons from Census TIGER via pygris or direct URL."""
     if HAS_PYGRIS:
@@ -88,9 +87,8 @@ def get_texas_counties() -> gpd.GeoDataFrame:
     return gdf
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. FEMA NFIP FLOOD INSURANCE CLAIMS (OpenFEMA API)
-# ─────────────────────────────────────────────────────────────────────────────
+
+# FEMA NFIP FLOOD INSURANCE CLAIMS (OpenFEMA API)
 def fetch_fema_claims(years: list) -> pd.DataFrame:
     base_url = "https://www.fema.gov/api/open/v2/FimaNfipClaims"
     start    = f"{min(years)}-01-01"
@@ -190,7 +188,7 @@ def aggregate_claims(df_claims: pd.DataFrame) -> pd.DataFrame:
     )
     return grp
 
-# FEMA CLAIMS
+# FEMA INSURANCE CLAIMS
 def fetch_usgs_peak_flows(years: list) -> pd.DataFrame:
     # ── Step 1: Pull peak flow records ────────────────────────────────────────
     pk_url = (
@@ -354,9 +352,9 @@ def fetch_usgs_peak_flows(years: list) -> pd.DataFrame:
     print(f"  → Peak flow data aggregated for {pk_grp['GEOID'].nunique()} counties.")
     return pk_grp
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. BUILD PANEL DATASET (county × year)
-# ─────────────────────────────────────────────────────────────────────────────
+
+# BUILD PANEL DATASET (county × year)
+
 def build_panel(counties_gdf, claims_agg, usgs_agg) -> gpd.GeoDataFrame:
     """Cross-join county × year, merge all data sources."""
     geoids = counties_gdf["GEOID"].unique()
@@ -398,9 +396,8 @@ def build_panel(counties_gdf, claims_agg, usgs_agg) -> gpd.GeoDataFrame:
     return gdf
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. STATIC CHOROPLETH MAPS (one per year)
-# ─────────────────────────────────────────────────────────────────────────────
+# CREATE STATIC CHOROPLETH MAPS (one per year)
+
 CMAP_BASE = plt.get_cmap("YlOrRd")
 CMAP = mcolors.LinearSegmentedColormap.from_list(
     "exposure_scale",
@@ -494,9 +491,8 @@ def make_grid_figure(gdf_panel: gpd.GeoDataFrame):
     plt.close(fig)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 6. ANIMATED GIF
-# ─────────────────────────────────────────────────────────────────────────────
+# CREATE AN ANIMATED MAP
+
 def make_animation(gdf_panel: gpd.GeoDataFrame):
     vmin = gdf_panel["exposure_score"].quantile(0.01)
     vmax = gdf_panel["exposure_score"].quantile(0.99)
@@ -536,9 +532,9 @@ def make_animation(gdf_panel: gpd.GeoDataFrame):
     plt.close(fig)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 7. INTERACTIVE FOLIUM MAP (slider by year)
-# ─────────────────────────────────────────────────────────────────────────────
+
+# CREATE AN INTERACTIVE FOLIUM MAP (slider by year)
+
 def make_folium_map(gdf_panel: gpd.GeoDataFrame):
     """Create an interactive choropleth with a year slider."""
     center = [31.0, -99.5]
@@ -614,9 +610,9 @@ def make_folium_map(gdf_panel: gpd.GeoDataFrame):
     print(f"Saved → {path}")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 8. TIME-SERIES PANEL for top-hit counties
-# ─────────────────────────────────────────────────────────────────────────────
+
+# TIME-SERIES PANEL for top-hit counties
+
 def make_timeseries(gdf_panel: gpd.GeoDataFrame):
     # make a copy so you don’t mutate the original data
     gdf_panel = gdf_panel.copy()
@@ -688,9 +684,9 @@ def make_timeseries(gdf_panel: gpd.GeoDataFrame):
     plt.close(fig)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 9. STATEWIDE TREND BAR CHART
-# ─────────────────────────────────────────────────────────────────────────────
+
+# STATEWIDE TREND BAR CHART
+
 def make_statewide_bar(gdf_panel: gpd.GeoDataFrame):
     annual = gdf_panel.groupby("year", as_index=False).agg(
         total_payout  = ("total_payout","sum"),
@@ -745,9 +741,9 @@ def make_statewide_bar(gdf_panel: gpd.GeoDataFrame):
     plt.close(fig)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 10. MAIN
-# ─────────────────────────────────────────────────────────────────────────────
+
+# MAIN BULK SAVE OF FILES
+
 if __name__ == "__main__":
     print("\n" + "="*60)
     print("  Texas Flood Exposure Analysis  2019-2024")
