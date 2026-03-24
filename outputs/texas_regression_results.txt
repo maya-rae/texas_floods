@@ -1,0 +1,48 @@
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:        log_claim_count   R-squared:                       0.464
+Model:                            OLS   Adj. R-squared:                  0.462
+Method:                 Least Squares   F-statistic:                     68.97
+Date:                Tue, 24 Mar 2026   Prob (F-statistic):           1.25e-63
+Time:                        13:37:30   Log-Likelihood:                -1667.0
+No. Observations:                1230   AIC:                             3346.
+Df Residuals:                    1224   BIC:                             3377.
+Df Model:                           5                                         
+Covariance Type:                  HC3                                         
+==================================================================================
+                     coef    std err          z      P>|z|      [0.025      0.975]
+----------------------------------------------------------------------------------
+const             -0.9950      0.209     -4.765      0.000      -1.404      -0.586
+precip_anom        0.0020      0.000      8.161      0.000       0.001       0.002
+impervious_pct     0.1470      0.011     13.178      0.000       0.125       0.169
+median_income    4.01e-07   2.73e-06      0.147      0.883   -4.96e-06    5.76e-06
+log_Q10_lp3        0.1372      0.019      7.384      0.000       0.101       0.174
+year_trend        -0.0467      0.018     -2.563      0.010      -0.082      -0.011
+==============================================================================
+Omnibus:                      512.365   Durbin-Watson:                   1.130
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):             2845.870
+Skew:                           1.863   Prob(JB):                         0.00
+Kurtosis:                       9.453   Cond. No.                     5.64e+05
+==============================================================================
+
+Notes:
+[1] Standard Errors are heteroscedasticity robust (HC3)
+[2] The condition number is large, 5.64e+05. This might indicate that there are
+strong multicollinearity or other numerical problems.
+
+Features used: precip_anom, impervious_pct, median_income, log_Q10_lp3, year_trend
+
+============================================================
+RANDOM FOREST  —  5-fold CV R²: 0.361 ± 0.083
+
+Feature importances:
+year_trend        0.019298
+median_income     0.040134
+log_Q10_lp3       0.077661
+precip_anom       0.196436
+impervious_pct    0.666471
+
+============================================================
+TEMPORAL HOLDOUT  —  Train: 2019-2022  |  Test: 2023-2024
+OLS          R² = 0.443   MAE = 0.653
+RandomForest R² = 0.603   MAE = 0.487
