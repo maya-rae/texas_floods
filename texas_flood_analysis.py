@@ -212,7 +212,7 @@ def fetch_usgs_peak_flows(years: list) -> pd.DataFrame:
                 rows.append(parts)
 
     if not header or not rows:
-        print("  ⚠  Could not parse USGS peak-flow table — skipping.")
+        print("Could not parse USGS peak-flow table — skipping.")
         return pd.DataFrame()
 
     pk = pd.DataFrame(rows, columns=header)
@@ -254,7 +254,7 @@ def fetch_usgs_peak_flows(years: list) -> pd.DataFrame:
         time.sleep(0.2)
 
     if not site_rows:
-        print("  ⚠  Could not fetch site coordinates — skipping USGS layer.")
+        print("Could not fetch site coordinates — skipping USGS layer.")
         return pd.DataFrame()
 
     sites = pd.DataFrame(site_rows)
@@ -314,7 +314,7 @@ def fetch_usgs_peak_flows(years: list) -> pd.DataFrame:
         print(f"  {len(pk):,} records with valid coordinates after join.")
 
     if pk.empty:
-        print("  ⚠  No records remaining after site join — skipping.")
+        print("No records remaining after site join — skipping.")
         return pd.DataFrame()
 
     if pk["GEOID"].isna().any():
@@ -337,7 +337,7 @@ def fetch_usgs_peak_flows(years: list) -> pd.DataFrame:
     pk = pk.dropna(subset=["GEOID"]).copy()
 
     if pk.empty:
-        print("  ⚠  Spatial join fallback returned no matches — skipping USGS layer.")
+        print("Spatial join fallback returned no matches — skipping USGS layer.")
         return pd.DataFrame()
 
     # Flag events above each gauge's historical median
@@ -376,7 +376,7 @@ def build_panel(counties_gdf, claims_agg, usgs_agg) -> gpd.GeoDataFrame:
         if col in panel.columns:
             panel[col] = panel[col].fillna(0)
 
-    # Composite flood exposure score (normalised 0-1 per year)
+    # Composite flood exposure score (normalized 0-1 per year)
     # = 0.5 * norm(claim_count) + 0.3 * norm(total_payout) + 0.2 * norm(gauge_flood_events)
     def norm_by_year(series_name: str) -> pd.Series:
         grouped = panel.groupby("year")[series_name]
@@ -398,15 +398,16 @@ def build_panel(counties_gdf, claims_agg, usgs_agg) -> gpd.GeoDataFrame:
 
 # CREATE STATIC CHOROPLETH MAPS (one per year)
 
-CMAP_BASE = plt.get_cmap("YlOrRd")
+CMAP_BASE = plt.get_cmap("Blues")
 CMAP = mcolors.LinearSegmentedColormap.from_list(
     "exposure_scale",
-    CMAP_BASE(np.linspace(0.18, 0.98, 256)),
+    CMAP_BASE(np.linspace(0.22, 0.98, 256)),
 )
 PLOT_BG = "#ffffff"
 PANEL_BG = "#f7f7f7"
 TEXT_COLOR = "#1f1f1f"
 EDGE_COLOR = "#5f5f5f"
+AUTHOR_CREDIT = "Author: Maya Arnott"
 EVENTS = {
     2019: "Tropical Storm Imelda\n(Sep 2019)",
     2020: "Hurricane Laura / Marco\nHisto-flooding",
@@ -443,10 +444,16 @@ def plot_year(gdf_year: gpd.GeoDataFrame, year: int, ax: plt.Axes,
     ax.set_title(str(year), fontsize=16, fontweight="bold",
                  color=TEXT_COLOR, pad=6)
     ax.axis("off")
+    ax.text(0.98, 0.97, AUTHOR_CREDIT,
+            transform=ax.transAxes,
+            fontsize=7.5, color=TEXT_COLOR,
+            ha="right", va="top",
+            bbox=dict(boxstyle="round,pad=0.25",
+                      facecolor="white", edgecolor="#d0d0d0", alpha=0.92))
 
     # Notable event annotation
     if year in EVENTS:
-        ax.text(0.02, 0.03, EVENTS[year],
+        ax.text(0.02, 0.11, EVENTS[year],
                 transform=ax.transAxes,
                 fontsize=7.5, color=TEXT_COLOR,
                 va="bottom", style="italic",
@@ -458,10 +465,10 @@ def make_grid_figure(gdf_panel: gpd.GeoDataFrame):
     vmin = gdf_panel["exposure_score"].quantile(0.01)
     vmax = gdf_panel["exposure_score"].quantile(0.99)
 
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10),
+    fig, axes = plt.subplots(2, 3, figsize=(18.5, 10.5),
                              facecolor=PLOT_BG)
     fig.suptitle("Texas Flood & Water Exposure  2019 – 2024",
-                 fontsize=22, fontweight="bold", color=TEXT_COLOR, y=0.97)
+                 fontsize=22, fontweight="bold", color=TEXT_COLOR, y=0.975)
 
     for ax, year in zip(axes.flat, YEARS):
         subset = gdf_panel[gdf_panel["year"] == year].copy()
@@ -472,22 +479,24 @@ def make_grid_figure(gdf_panel: gpd.GeoDataFrame):
         subset = gpd.GeoDataFrame(subset, geometry="geometry", crs=CRS_WGS)
         plot_year(subset, year, ax, vmin, vmax)
 
-    # Shared colorbar
+    # Reserve a right-side gutter so the legend can sit outside the map panels.
+    fig.subplots_adjust(left=0.03, right=0.86, top=0.90, bottom=0.06,
+                        wspace=0.10, hspace=0.12)
+
+    # Shared colorbar in the top-right corner, outside the subplot area.
     sm  = cm.ScalarMappable(cmap=CMAP,
                              norm=mcolors.Normalize(vmin=vmin, vmax=vmax))
     sm.set_array([])
-    cbar = fig.colorbar(sm, ax=axes, orientation="horizontal",
-                        fraction=0.025, pad=0.03, shrink=0.6)
+    cax = fig.add_axes([0.885, 0.56, 0.02, 0.26])
+    cbar = fig.colorbar(sm, cax=cax, orientation="vertical")
     cbar.set_label("Composite Flood Exposure Score  (FEMA claims + USGS peak flow)",
-                   color=TEXT_COLOR, fontsize=10)
+                   color=TEXT_COLOR, fontsize=10, labelpad=10)
     cbar.ax.tick_params(colors=TEXT_COLOR, labelsize=8)
     cbar.outline.set_edgecolor("#bdbdbd")
-
-    plt.tight_layout(rect=[0, 0.04, 1, 0.95])
     path = "outputs/texas_flood_grid.png"
     fig.savefig(path, dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
-    print(f"  ✅  Saved → {path}")
+    print(f"Saved → {path}")
     plt.close(fig)
 
 
@@ -528,9 +537,8 @@ def make_animation(gdf_panel: gpd.GeoDataFrame):
                         interval=1200, repeat=True)
     path = "outputs/texas_flood_animated.gif"
     ani.save(path, writer=PillowWriter(fps=0.85))
-    print(f"  ✅  Saved → {path}")
+    print(f"Saved → {path}")
     plt.close(fig)
-
 
 
 # CREATE AN INTERACTIVE FOLIUM MAP (slider by year)
@@ -541,8 +549,8 @@ def make_folium_map(gdf_panel: gpd.GeoDataFrame):
     m      = folium.Map(location=center, zoom_start=6,
                         tiles="CartoDB positron")
 
-    vmin = float(gdf_panel["exposure_score"].quantile(0.02))
-    vmax = float(gdf_panel["exposure_score"].quantile(0.98))
+    vmin = float(gdf_panel["exposure_score"].quantile(0.01))
+    vmax = float(gdf_panel["exposure_score"].quantile(0.99))
     if vmax <= vmin:
         vmax = float(gdf_panel["exposure_score"].max() or 1.0)
     exposure_scale = bcm.LinearColormap(
@@ -556,6 +564,7 @@ def make_folium_map(gdf_panel: gpd.GeoDataFrame):
         sub = gdf_panel[gdf_panel["year"] == year].copy()
         sub = sub.to_crs(CRS_WGS)
         sub["exposure_score"] = sub["exposure_score"].fillna(0)
+        sub["year_label"] = sub["year"].astype(int).astype(str)
 
         def style_fn(feat):
             score = feat["properties"].get("exposure_score", 0) or 0
@@ -577,7 +586,7 @@ def make_folium_map(gdf_panel: gpd.GeoDataFrame):
                 "fillOpacity": 0.96,
             },
             tooltip        = folium.GeoJsonTooltip(
-                fields     = ["COUNTY_NAME","year",
+                fields     = ["COUNTY_NAME","year_label",
                               "claim_count","total_payout","exposure_score"],
                 aliases    = ["County","Year","# Claims",
                               "Total Payout ($)","Exposure Score"],
@@ -598,9 +607,10 @@ def make_folium_map(gdf_panel: gpd.GeoDataFrame):
                 border-radius:8px;font-size:12px;border:1px solid #cfcfcf;
                 box-shadow:0 2px 8px rgba(0,0,0,0.12);">
       <b>Texas Flood Exposure 2019-2024</b><br>
-      Toggle years in the layers panel →<br>
+      Toggle years in the layers panel <br>
       Color encodes <b>exposure score</b>, not raw payout<br>
       Data: FEMA NFIP claims · USGS streamflow<br>
+      Author: Maya Arnott<br>
       <i style="color:#666">Click a county for details</i>
     </div>"""
     m.get_root().html.add_child(folium.Element(legend_html))
@@ -680,7 +690,7 @@ def make_timeseries(gdf_panel: gpd.GeoDataFrame):
     path = "outputs/texas_flood_timeseries.png"
     fig.savefig(path, dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
-    print(f"  ✅  Saved → {path}")
+    print(f"Saved → {path}")
     plt.close(fig)
 
 
@@ -732,12 +742,16 @@ def make_statewide_bar(gdf_panel: gpd.GeoDataFrame):
                    linestyle="--", alpha=0.8)
         ax.text(2021.1, ax.get_ylim()[1]*0.92,
                 "Uri", color="#4fc3f7", fontsize=8)
+        ax.axvline(2024, color="#ff7043", linewidth=1.5,
+                   linestyle="--", alpha=0.8)
+        ax.text(2024.1, ax.get_ylim()[1]*0.92,
+                "Houston", color="#ff7043", fontsize=8)
 
     plt.tight_layout()
     path = "outputs/texas_flood_statewide.png"
     fig.savefig(path, dpi=150, bbox_inches="tight",
                 facecolor=fig.get_facecolor())
-    print(f"  ✅  Saved → {path}")
+    print(f"Saved → {path}")
     plt.close(fig)
 
 
@@ -757,7 +771,7 @@ if __name__ == "__main__":
         df_claims   = fetch_fema_claims(YEARS)
         claims_agg  = aggregate_claims(df_claims)
     except Exception as e:
-        print(f"  ⚠  FEMA fetch failed ({e}) – using empty data")
+        print(f"FEMA fetch failed ({e}) – using empty data")
         claims_agg = pd.DataFrame(columns=["GEOID","year","claim_count",
                                             "total_payout","buildings_hit"])
 
@@ -765,7 +779,7 @@ if __name__ == "__main__":
     try:
         usgs_agg = fetch_usgs_peak_flows(YEARS)
     except Exception as e:
-        print(f"  ⚠  USGS fetch failed ({e}) – skipping peak flow layer")
+        print(f"USGS fetch failed ({e}) – skipping peak flow layer")
         usgs_agg = pd.DataFrame()
 
     # Step 4: Panel
@@ -773,7 +787,7 @@ if __name__ == "__main__":
     gdf_panel = build_panel(counties_gdf, claims_agg, usgs_agg)
     gdf_panel.drop(columns="geometry").to_csv(
         "outputs/texas_flood_summary.csv", index=False)
-    print("  ✅  Panel saved → outputs/texas_flood_summary.csv")
+    print("Panel saved → outputs/texas_flood_summary.csv")
     print(f"      Shape: {gdf_panel.shape}  |  "
           f"Counties: {gdf_panel['GEOID'].nunique()}  |  "
           f"Years: {sorted(gdf_panel['year'].unique())}")
