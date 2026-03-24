@@ -510,7 +510,7 @@ def plot_frequency_curves(pk: pd.DataFrame, df_rp: pd.DataFrame, n=10):
 # PART 2 — FEATURE ENGINEERING
 
 #  County level daily precipitation
-#  Source: Robbie M Parks and Victoria Lynch
+#  Source: PRISM, converted by Robbie M Parks and Victoria D Lynch
 NOAA_TOKEN = os.environ.get("NOAA_CDO_TOKEN", "").strip()
 
 def fetch_noaa_precip(years: list) -> pd.DataFrame:
@@ -829,6 +829,15 @@ def run_random_forest(X: pd.DataFrame, y: pd.Series,
 
     return rf, scaler, importances
 
+
+def adjusted_r2_score(y_true, y_pred, n_features: int) -> float:
+    """Adjusted R^2 from predictions, with a safe fallback for small samples."""
+    n_obs = len(y_true)
+    r2 = r2_score(y_true, y_pred)
+    if n_obs <= n_features + 1:
+        return r2
+    return 1 - (1 - r2) * (n_obs - 1) / (n_obs - n_features - 1)
+
 def run_temporal_holdout(df_model: pd.DataFrame, features: list,
                           train_years=(2019, 2022), test_years=(2023, 2024)):
     """
@@ -852,6 +861,7 @@ def run_temporal_holdout(df_model: pd.DataFrame, features: list,
     ols = sm.OLS(y_train, sm.add_constant(X_train)).fit(cov_type="HC3")
     ols_pred = ols.predict(sm.add_constant(X_test))
     ols_r2   = r2_score(y_test, ols_pred)
+    ols_adj_r2 = adjusted_r2_score(y_test, ols_pred, len(features))
     ols_mae  = mean_absolute_error(y_test, ols_pred)
     print(f"\n  OLS holdout     R² = {ols_r2:.3f}   MAE = {ols_mae:.3f}")
 
@@ -863,6 +873,7 @@ def run_temporal_holdout(df_model: pd.DataFrame, features: list,
     rf.fit(scaler.fit_transform(X_train), y_train)
     rf_pred = rf.predict(scaler.transform(X_test))
     rf_r2   = r2_score(y_test, rf_pred)
+    rf_adj_r2 = adjusted_r2_score(y_test, rf_pred, len(features))
     rf_mae  = mean_absolute_error(y_test, rf_pred)
     print(f"  RF  holdout     R² = {rf_r2:.3f}   MAE = {rf_mae:.3f}")
 
@@ -877,17 +888,27 @@ def run_temporal_holdout(df_model: pd.DataFrame, features: list,
     fig.suptitle("Temporal Holdout Validation  —  Trained 2019–2022 / Tested 2023–2024",
                  fontsize=13, fontweight="bold", color=TEXT_COLOR)
 
-    for ax, preds, label, color, r2, mae in [
-        (ax1, ols_pred, "OLS",           "#2196f3", ols_r2, ols_mae),
-        (ax2, rf_pred,  "Random Forest", "#4caf50", rf_r2,  rf_mae),
+    for ax, preds, label, color, adj_r2, mae in [
+        (ax1, ols_pred, "OLS",           "#2196f3", ols_adj_r2, ols_mae),
+        (ax2, rf_pred,  "Random Forest", "#4caf50", rf_adj_r2,  rf_mae),
     ]:
         ax.scatter(y_test, preds, alpha=0.35, s=14,
                    color=color, edgecolors="none")
         lims = [min(float(y_test.min()), float(preds.min())),
                 max(float(y_test.max()), float(preds.max()))]
         ax.plot(lims, lims, "r--", linewidth=1, label="Perfect prediction")
-        ax.set_title(f"{label}\nHoldout R² = {r2:.3f}   MAE = {mae:.3f}",
-                     color=TEXT_COLOR, fontsize=11)
+        if label == "OLS":
+            ax.set_title(
+                f"{label}\nHoldout R² = {ols_r2:.3f}   Adjusted R² = {adj_r2:.3f}",
+                color=TEXT_COLOR,
+                fontsize=11,
+            )
+        else:
+            ax.set_title(
+                f"{label}\nHoldout R² = {rf_r2:.3f}   MAE = {mae:.3f}",
+                color=TEXT_COLOR,
+                fontsize=11,
+            )
         ax.set_xlabel("Actual  log(claim count + 1)", color=TEXT_COLOR)
         ax.set_ylabel("Predicted", color=TEXT_COLOR)
         ax.set_facecolor(PANEL_BG)
@@ -925,6 +946,9 @@ def plot_regression_diagnostics(ols_results, rf, scaler,
     y_pred_ols = ols_results.predict(sm.add_constant(X))
     X_sc       = scaler.transform(X)
     y_pred_rf  = rf.predict(X_sc)
+    n_features = len(importances)
+    ols_adj_r2 = adjusted_r2_score(y, y_pred_ols, n_features)
+    rf_adj_r2 = adjusted_r2_score(y, y_pred_rf, n_features)
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 11), facecolor=PLOT_BG)
     fig.suptitle("Texas Flood Claim Count — Regression Diagnostics",
@@ -939,7 +963,8 @@ def plot_regression_diagnostics(ols_results, rf, scaler,
     ax.set_xlabel("Actual log(claim count + 1)", color=TEXT_COLOR)
     ax.set_ylabel("Predicted", color=TEXT_COLOR)
     ax.set_title(f"OLS  –  Actual vs Predicted\n"
-                 f"R² = {r2_score(y, y_pred_ols):.3f}", color=TEXT_COLOR)
+                 f"R² = {r2_score(y, y_pred_ols):.3f}  "
+                 f"Adjusted R² = {ols_adj_r2:.3f}", color=TEXT_COLOR)
     ax.set_facecolor(PANEL_BG)
     ax.tick_params(colors=TEXT_COLOR)
     for sp in ax.spines.values(): sp.set_edgecolor("#cfcfcf")
