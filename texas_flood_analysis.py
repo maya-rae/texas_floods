@@ -5,17 +5,9 @@ Data sources:
   • FEMA OpenFEMA – NFIP flood insurance claims by county
   • USGS NWIS    – Streamgage peak-flow / flood stage data
   • Census TIGER – Texas county boundaries (via pygris / geopandas)
-  • NOAA CDO     – Monthly precipitation (optional, see config)
-
-Outputs (written to ./outputs/):
-  • texas_flood_choropleth_<year>.png  – per-year static maps
-  • texas_flood_animated.gif            – animated choropleth 2019-2024
-  • texas_flood_interactive.html        – Folium interactive map
-  • texas_flood_timeseries.png          – county-level time-series panel
-  • texas_flood_summary.csv             – cleaned merged dataset
 """
 
-# Imports from library 
+# Imports
 import warnings, os, time
 warnings.filterwarnings("ignore")
 
@@ -33,7 +25,7 @@ import branca.colormap as bcm
 from folium.plugins import TimeSliderChoropleth
 import contextily as ctx
 
-# Try optional packages
+# try optional packages
 try:
     import pygris
     HAS_PYGRIS = True

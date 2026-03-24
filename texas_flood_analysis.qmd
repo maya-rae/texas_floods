@@ -1,0 +1,344 @@
+---
+title: "Texas Flood Exposure Analysis"
+subtitle: "A spatial and statistical assessment of flood risk across Texas counties, 2019–2024"
+author: "Maya Arnott"
+date: 03/23/2026
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-title: "Contents"
+    theme: cosmo
+    code-fold: true
+    code-tools: true
+    fig-align: center
+    fig-cap-location: bottom
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+## Overview
+
+This project quantifies flood exposure and risk across Texas's 254 counties
+over the period 2019–2024, combining live government data sources, GIS spatial
+analysis, hydrological frequency modeling, and regression to produce a
+reproducible county-level flood risk index.
+
+The analysis is split across two Python modules:
+
+- **`texas_flood_analysis.py`** — data pipeline, spatial joins, and
+  visualizations
+- **`risk_modeling.py`** — flood frequency distributions, regression
+  modeling, and the final risk index
+
+All data is either fetched programmatically from public APIs at run time or from 
+
+---
+
+## Data Sources
+
+| Source | Data | Access |
+|---|---|---|
+| FEMA OpenFEMA API | NFIP flood insurance claims by county, 2019–2024 | Public REST API |
+| USGS NWIS | Annual peak streamflow, full historical record | Public REST API |
+| Census TIGER | County boundaries (254 Texas counties) | `pygris` |
+| Robbie M Parks and Victoria D Lynch | PRISM County-Level Precipitation Data | Github Download upon Request |
+| Multi-Resolution Land Characteristics (MRLC) Consortium | Impervious surface % (2019)| Public download |
+| Census ACS 5-year (2022) | Median household income by county | Public REST API |
+
+---
+
+## Part 1 — Flood Exposure (2019–2024)
+
+### FEMA NFIP Claims
+
+The Federal Emergency Management Agency's National Flood Insurance Program
+(NFIP) publishes redacted flood insurance claims through the OpenFEMA API.
+Each record contains the date of loss, county code, and amounts paid on
+building and contents claims. These were aggregated to the **county-year**
+level, with one row per county per year, giving total claim counts and total
+dollars paid out as the primary measure of realized flood damage.
+
+24,732 claim records were retrieved for Texas across 2019–2024.
+
+### USGS Peak Streamflow
+
+USGS maintains a network of river gauges across Texas. Annual peak flow
+readings were pulled from the NWIS database. Because the peak flow endpoint
+does not include coordinates, a second API call to the USGS site service
+retrieved lat/lon for each gauge, which were then spatially joined to county
+polygons, assigning each gauge to whichever of the 254 county boundaries it
+falls within. This produced a county-year count of above-median flood events
+as a physical corroborating signal alongside the insurance claims.
+
+### Composite Exposure Score
+
+The FEMA and USGS data were combined into a single composite score per
+county-year:
+
+$$
+\text{Exposure Score} = 0.5 \cdot \tilde{n}_{\text{claims}} + 0.3 \cdot \widetilde{\text{payout}} + 0.2 \cdot \tilde{n}_{\text{gauge events}}
+$$
+
+where $\tilde{\cdot}$ denotes min-max normalization within each year to
+a 0–1 scale. Normalizing within year rather than across all years ensures
+that the choropleth color scale reflects relative within-year variation
+rather than being dominated by outlier years like 2021.
+
+### Maps
+
+The grid below shows one choropleth per year. Color encodes the composite
+exposure score, where darker blue indicates higher relative flood exposure within
+that year.
+
+![Texas Flood Exposure 2019–2024. Each panel shows the composite score
+derived from FEMA NFIP claims and USGS peak streamflow gauge events.
+Dashed annotation boxes note the dominant meteorological event for each
+year.](outputs/texas_flood_grid.png)
+
+Notable patterns:
+
+- **2019**: Southeast Texas (Harris, Jefferson, Orange counties) shows
+  elevated exposure driven by Tropical Storm Imelda, which dropped over
+  40 inches in parts of the region.
+- **2021**: The statewide signal from Winter Storm Uri is visible across
+  central and eastern counties, reflecting widespread pipe failures and
+  subsequent flood claims rather than riverine flooding alone.
+- **2024**: The Houston metropolitan area reemerges as the dominant
+  exposure cluster following the April through May flooding events.
+
+### Statewide Trend
+
+![Total NFIP payout and claim count by year across all Texas counties.
+The 2021 Uri spike and the 2024 Houston flooding are annotated.
+](outputs/texas_flood_statewide.png)
+
+### County Time Series
+
+The twelve counties with the highest cumulative NFIP payout across 2019–2024
+are shown below. Harris County (Houston) dominates by absolute dollar value,
+but note that smaller Gulf Coast counties such as Jefferson and Orange show
+disproportionately high payouts relative to their population, indicating
+structural flood exposure rather than solely claim volume.
+
+![NFIP flood payouts by year for the 12 highest-exposure Texas counties.
+Dashed vertical lines mark Winter Storm Uri (2021) and the Houston flooding
+event (2024).](outputs/texas_flood_timeseries.png)
+
+---
+
+## Part 2 — Flood Frequency Analysis
+
+### Motivation
+
+Choropleth maps of historical claims show where damage *has* occurred. Flood
+frequency analysis asks a different question: given the physical hydrology of
+each county, how large a flood should we expect at a given return period? This
+is the core methodology behind FEMA Flood Insurance Rate Maps and private
+climate risk scores.
+
+### Method
+
+The full historical USGS peak streamflow record for Texas — not just 2019–2024
+— was retrieved to maximize the length of record available for distribution
+fitting. Frequency analysis requires ideally 30–50+ years of data to
+constrain the tail of the distribution.
+
+For each county, annual maximum peak flows were extracted (one value per year,
+pooled across all gauges within the county). Two distributions were fitted:
+
+**GEV (Generalised Extreme Value)** — the theoretically justified model for
+block maxima such as annual peak flows, derived from extreme value theory. The
+GEV has three parameters: location $\mu$, scale $\sigma$, and shape $\xi$,
+where the shape parameter determines whether the tail is bounded (Weibull,
+$\xi < 0$), light (Gumbel, $\xi = 0$), or heavy (Fréchet, $\xi > 0$).
+
+**Log-Pearson III (LP3)** — the US federal standard for flood frequency
+analysis, defined in USGS Bulletin 17C. A Pearson III distribution is fitted
+to the log-transformed annual maxima.
+
+Both models were fitted by maximum likelihood. The better fit was selected
+by **AIC** (Akaike Information Criterion):
+
+$$
+\text{AIC} = 2k - 2\ln(\hat{L})
+$$
+
+where $k = 3$ parameters and $\hat{L}$ is the maximized likelihood. Lower AIC
+indicates a better fit penalized for model complexity.
+
+From the winning distribution, Q10, Q50, and Q100 return period flows were
+estimated — the flow magnitude with a 1-in-10, 1-in-50, and 1-in-100 annual
+exceedance probability respectively.
+
+### Results
+
+![Estimated 100-year peak flow by county. Counties with fewer than 10
+annual observations are shown in grey. The colour scale is capped at the 99th
+percentile for readability; East Texas river systems (Trinity, Neches, Sabine)
+show the highest estimated 100-year flows.](outputs/texas_return_period_map.png)
+
+The frequency curves below show GEV fits for the ten counties with the most
+gauge observations. Empirical plotting positions follow the Weibull formula
+$p = m / (n + 1)$ where $m$ is rank in ascending order.
+
+![GEV flood frequency curves for the ten highest-data-density Texas counties.
+Points show empirical annual maxima (Weibull plotting positions); lines show
+the fitted GEV distribution. Horizontal dashed lines mark the estimated 10-year
+and 100-year return flows.](outputs/texas_flood_frequency_curves.png)
+
+---
+
+## Part 3 — Regression Model
+
+### Features
+
+Five predictors were assembled at the county-year level:
+
+| Feature | Source | Rationale |
+|---|---|---|
+| `precip_anom` | PRISM data converted by Robbie M Parks and Victoria D Lynch | Annual precipitation deviation from 2019–2024 baseline |
+| `impervious_pct` | MRLC 2019 | Proportion of county that is impervious surface; drives runoff |
+| `median_income` | Census ACS 2022 | Vulnerability proxy; lower income = fewer mitigation resources |
+| `log_Q10_gev` | USGS / GEV fit | Log of 10-year return period flow; encodes baseline flood hazard |
+| `year_trend` | Derived | Linear year index; captures any secular trend in claims |
+
+The target variable is $\log(1 + \text{claim count})$ — the log transform
+stabilizes the right-skewed distribution of claim counts, where most
+county-years have zero or few claims but a small number have thousands.
+
+### OLS
+
+An OLS model with heteroscedasticity-robust standard errors (HC3) was fitted
+to the full 2019–2024 panel. HC3 standard errors are preferred here because
+variance in claim counts is substantially higher in flood-prone counties than
+in dry ones — a classic case of heteroscedasticity.
+
+$$
+\log(1 + y_{it}) = \beta_0 + \beta_1 \cdot \text{precip\_anom}_t +
+\beta_2 \cdot \text{imperv}_i + \beta_3 \cdot \text{income}_i +
+\beta_4 \cdot \log Q10_i + \beta_5 \cdot \text{trend}_t + \varepsilon_{it}
+$$
+
+**In-sample R² = 0.464.** The five features explain about 46.4% of variance in
+log claim counts. 
+
+### Random Forest
+
+The same features were passed to a Random Forest with 300 trees, maximum
+depth 6, and minimum 5 samples per leaf. **5-fold cross-validated R² = 0.361 ± 0.083, and the temporal holdout (2023–2024) R² = 0.603.**
+
+The higher in-sample R² (≈0.748) reflects the model’s fit to the training data and illustrates that Random Forest can flexibly capture non-linear and interaction effects that OLS cannot. The improvement over OLS indicates two things:
+	1.	Relationships between features and claim counts are non-linear. For example, impervious surface likely has little effect until it crosses a threshold, beyond which runoff and claims increase sharply.
+	2.	Interaction effects matter: a county that is both highly paved and experiences an anomalously wet year sees disproportionately more claims than either factor alone would predict.
+
+These patterns are captured naturally by Random Forest without manual feature engineering, but the low 5-fold cross-validation R² suggests that the model may be overfitting to specific years in the training data, particularly given the small sample size (762 county-year rows). The temporal holdout validation below provides a more realistic test of generalization to new years.
+
+![Regression diagnostics. Top row: OLS actual vs predicted and residual
+plot. Bottom row: Random Forest actual vs predicted and feature importances.
+The fan shape in the OLS residual plot confirms heteroscedasticity — variance
+increases with fitted values, consistent with a skewed claim
+distribution.](outputs/texas_regression_actual_vs_pred.png)
+
+---
+
+## Part 4 — Temporal Holdout Validation
+
+### Why Temporal Holdout Matters
+
+The 5-fold cross-validation above splits data randomly. This means a fold can
+train on 2022 and 2023 data and then predict 2020 — leaking future information
+into training. For a forecasting application, this is too optimistic: in
+practice a model trained on historical data will only ever be applied to future
+years it has never seen.
+
+A temporal holdout enforces the correct discipline: train exclusively on
+2019–2022, then evaluate on 2023–2024 as if making genuine out-of-sample
+predictions.
+
+```
+Training:  2019–2022  (~1,016 county-year rows)
+Test:      2023–2024  (~508 county-year rows)
+```
+
+### Results
+
+| Model | CV R² | Holdout R² | Change |
+|---|---|---|---|
+| OLS | 0.464 | 0.443 | −0.112 |
+| Random Forest | 0.361 | 0.603 | +0.242 |
+
+![Temporal holdout validation. Both models trained on 2019–2022 only and
+evaluated on withheld 2023–2024 data.](outputs/texas_temporal_holdout.png)
+
+### Interpretation
+
+The OLS holdout R² of 0.443 indicates that the linear relationships learned from 2019–2022 generalize reasonably well to new years. While some degradation is expected, the linear model still retains much of its explanatory power.
+
+The Random Forest achieved a holdout R² of 0.603, which is an improvement over its 5-fold CV R² of 0.361. This suggests that the non-linear patterns it captured, particularly the interaction between impervious surface and flood hazard, are genuine and temporally stable rather than artifacts of overfitting to specific training years.
+
+The remaining unexplained variance is likely due to the absence of event-level inputs. Incorporating NOAA storm footprints or FEMA disaster declaration indicators as county-year features would provide the spatial and temporal specificity that the current statewide precipitation anomaly lacks, and would likely be the single best addition for boosting holdout R² further.
+---
+
+## Part 5 — Final Risk Index
+
+A county-level risk index was constructed by combining four normalized
+dimensions:
+
+$$
+\text{Risk Index} = 0.40 \cdot \text{Exposure} + 0.35 \cdot \text{Hazard} +
+0.15 \cdot \text{Imperviousness} + 0.10 \cdot \text{Vulnerability}
+$$
+
+where:
+
+- **Exposure** = total NFIP claims across 2019–2024, normalized 0–100
+- **Hazard** = estimated Q100 return period flow, normalized 0–100
+- **Imperviousness** = mean impervious surface %, normalized 0–100
+- **Vulnerability** = inverse of median household income, normalized 0–100
+  (lower income = higher vulnerability)
+
+The full table is saved to `outputs/texas_risk_score_final.csv`.
+
+---
+
+## Limitations & Next Steps
+
+**Current limitations:**
+
+	•	Precipitation data is now county-specific rather than statewide, which has improved the OLS model’s ability to predict log claim counts. However, it still only captures annual totals. Short-term, event-level rainfall variability within the year is still lost.
+	•	Impervious surface and income are static and do not capture year-on-year changes in land use or economic conditions.
+	•	No event-level storm footprints or FEMA disaster indicators are included. Flood damage is fundamentally event-driven and spatially concentrated, so aggregating to the county-year level still loses much of that resolution. These remain the main factors limiting holdout performance, particularly for the Random Forest model.
+
+**Best value next steps:**
+
+1. Add a binary FEMA disaster declaration indicator per county-year as a
+   feature, which is publicly available and would directly encode whether a
+   major event occurred
+2. Implement a proper train/test split by event rather than by year,
+   treating each named storm as a holdout event
+3. Incorporate NLCD impervious surface rasters over the years directly to enable time-varying land cover from the 2001, 2006, 2011, 2016, and 2021 NLCD vintages
+
+---
+
+## Reproducibility
+
+```bash
+# Run in order
+python texas_flood_analysis.py
+python risk_modeling.py
+```
+
+All outputs are written to `./outputs/`. The Quarto document can be rendered
+with:
+
+```bash
+quarto render texas_flood_analysis.qmd
+```
