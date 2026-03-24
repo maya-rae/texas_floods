@@ -317,7 +317,7 @@ The full table is saved to `outputs/texas_risk_score_final.csv`.
 	•	Impervious surface and income are static and do not capture year-on-year changes in land use or economic conditions.
 	•	No event-level storm footprints or FEMA disaster indicators are included. Flood damage is fundamentally event-driven and spatially concentrated, so aggregating to the county-year level still loses much of that resolution. These remain the main factors limiting holdout performance, particularly for the Random Forest model.
 
-**Best value next steps:**
+**Next Steps:**
 
 1. Add a binary FEMA disaster declaration indicator per county-year as a
    feature, which is publicly available and would directly encode whether a
