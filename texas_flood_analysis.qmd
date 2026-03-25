@@ -38,7 +38,7 @@ The analysis is split across two Python modules:
 - **`risk_modeling.py`** — flood frequency distributions, regression
   modeling, and the final risk index
 
-All data is either fetched programmatically from public APIs at run time or from 
+All data is either fetched programmatically from public APIs at run time or from github repositories after requesting access.
 
 ---
 
@@ -146,10 +146,7 @@ climate risk scores.
 
 ### Method
 
-The full historical USGS peak streamflow record for Texas — not just 2019–2024
-— was retrieved to maximize the length of record available for distribution
-fitting. Frequency analysis requires ideally 30–50+ years of data to
-constrain the tail of the distribution.
+The full historical USGS peak streamflow record for Texas, instead of only using 2019–2024, was retrieved to maximize the length of record available for distribution fitting. Frequency analysis requires ideally 30–50+ years of data to constrain the tail of the distribution.
 
 For each county, annual maximum peak flows were extracted (one value per year,
 pooled across all gauges within the county). Two distributions were fitted:
@@ -181,7 +178,7 @@ exceedance probability respectively.
 ### Results
 
 ![Estimated 100-year peak flow by county. Counties with fewer than 10
-annual observations are shown in grey. The colour scale is capped at the 99th
+annual observations are shown in grey. The color scale is capped at the 99th
 percentile for readability; East Texas river systems (Trinity, Neches, Sabine)
 show the highest estimated 100-year flows.](outputs/texas_return_period_map.png)
 
@@ -189,10 +186,15 @@ The frequency curves below show GEV fits for the ten counties with the most
 gauge observations. Empirical plotting positions follow the Weibull formula
 $p = m / (n + 1)$ where $m$ is rank in ascending order.
 
-![GEV flood frequency curves for the ten highest-data-density Texas counties.
+![LP3 flood frequency curves for the ten highest-data-density Texas counties.
 Points show empirical annual maxima (Weibull plotting positions); lines show
-the fitted GEV distribution. Horizontal dashed lines mark the estimated 10-year
-and 100-year return flows.](outputs/texas_flood_frequency_curves.png)
+the fitted Log-Pearson III distribution. Horizontal dashed lines mark the
+estimated 10-year and 100-year return flows.](outputs/texas_flood_frequency_curves.png)
+
+After evaluating both methods, LP3 was preferred to GEV because the GEV fits
+produced unstable upper-tail estimates for several Texas counties. LP3 gave a
+more credible graphical match to the observed annual maxima while still
+capturing the strong right-skew typical of flood-flow data.
 
 ---
 
@@ -314,9 +316,9 @@ The full table is saved to `outputs/texas_risk_score_final.csv`.
 
 **Current limitations:**
 
-	•	Precipitation data is now county-specific rather than statewide, which has improved the OLS model’s ability to predict log claim counts. However, it still only captures annual totals. Short-term, event-level rainfall variability within the year is still lost.
-	•	Impervious surface and income are static and do not capture year-on-year changes in land use or economic conditions.
-	•	No event-level storm footprints or FEMA disaster indicators are included. Flood damage is fundamentally event-driven and spatially concentrated, so aggregating to the county-year level still loses much of that resolution. These remain the main factors limiting holdout performance, particularly for the Random Forest model.
+•	Precipitation data is now county-specific rather than statewide, which has improved the OLS model’s ability to predict log claim counts. However, it still only captures annual totals. Short-term, event-level rainfall variability within the year is still lost.
+•	Impervious surface and income are static and do not capture year-on-year changes in land use or economic conditions.
+•	No event-level storm footprints or FEMA disaster indicators are included. Flood damage is fundamentally event-driven and spatially concentrated, so aggregating to the county-year level still loses much of that resolution. These remain the main factors limiting holdout performance, particularly for the Random Forest model.
 
 **Next Steps:**
 

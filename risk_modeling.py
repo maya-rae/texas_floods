@@ -356,19 +356,14 @@ def fit_flood_frequency(pk: pd.DataFrame) -> pd.DataFrame:
         except Exception:
             pass
 
-        # Best-fit 100-yr estimate = whichever model has lower AIC
-        if "aic_gev" in row and "aic_lp3" in row:
-            row["Q100yr_best"] = (row.get("Q100yr_gev") 
-                                  if row["aic_gev"] <= row["aic_lp3"]
-                                  else row.get("Q100yr_lp3"))
-            row["best_model"]  = ("GEV" if row["aic_gev"] <= row["aic_lp3"]
-                                  else "LP3")
-        elif "aic_gev" in row:
-            row["Q100yr_best"] = row.get("Q100yr_gev")
-            row["best_model"]  = "GEV"
-        elif "aic_lp3" in row:
+        # Prefer LP3 for downstream reporting and hazard scoring because it is
+        # much more stable than the unconstrained GEV tails in this dataset.
+        if "Q100yr_lp3" in row:
             row["Q100yr_best"] = row.get("Q100yr_lp3")
-            row["best_model"]  = "LP3"
+            row["best_model"] = "LP3"
+        elif "Q100yr_gev" in row:
+            row["Q100yr_best"] = row.get("Q100yr_gev")
+            row["best_model"] = "GEV"
 
         results.append(row)
 
@@ -389,11 +384,16 @@ def plot_return_period_map(df_rp: pd.DataFrame):
     gdf = gdf.to_crs(CRS_PROJ)
     display_vmax = gdf["Q100yr_best"].dropna().quantile(0.99)
     gdf["Q100yr_plot"] = gdf["Q100yr_best"].clip(upper=display_vmax)
+    log_norm = mcolors.LogNorm(
+        vmin=max(1, gdf["Q100yr_plot"].dropna().min()),
+        vmax=gdf["Q100yr_plot"].dropna().max(),
+    )
 
     fig, ax = plt.subplots(figsize=(13, 10), facecolor=PLOT_BG)
     ax.set_facecolor(PANEL_BG)
 
     gdf.plot(column="Q100yr_plot", ax=ax, cmap="Blues",
+             norm=log_norm,
              edgecolor="#666", linewidth=0.3,
              legend=False,
              missing_kwds={"color":"#efefef","edgecolor":"#ccc",
@@ -401,10 +401,7 @@ def plot_return_period_map(df_rp: pd.DataFrame):
 
     sm = cm.ScalarMappable(
         cmap="Blues",
-        norm=mcolors.LogNorm(
-            vmin=max(1, gdf["Q100yr_plot"].dropna().min()),
-            vmax=gdf["Q100yr_plot"].dropna().max(),
-        )
+        norm=log_norm
     )
     sm.set_array([])
     cbar = fig.colorbar(sm, ax=ax, orientation="vertical",
@@ -413,7 +410,7 @@ def plot_return_period_map(df_rp: pd.DataFrame):
     cbar.ax.tick_params(colors=TEXT_COLOR)
 
     ax.set_title("Texas — Estimated 100-Year Flood Peak Flow by County\n"
-                 "(GEV / LP3 distribution fit to all available USGS gauge records)",
+                 "(LP3 estimates from all available USGS gauge records)",
                  fontsize=13, fontweight="bold", color=TEXT_COLOR, pad=10)
     ax.text(0.98, 0.02, "Color scale capped at 99th percentile for readability",
             transform=ax.transAxes, ha="right", va="bottom",
@@ -429,9 +426,9 @@ def plot_return_period_map(df_rp: pd.DataFrame):
 
 def plot_frequency_curves(pk: pd.DataFrame, df_rp: pd.DataFrame, n=10):
     """
-    Plot GEV frequency curves for the n counties with the most gauge data.
+    Plot LP3 frequency curves for the n counties with the most gauge data.
     X-axis = return period (log scale), Y-axis = peak flow (cfs).
-    This is the canonical plot used in hydrology reports.
+    This mirrors the GEV diagnostic plot but uses the more stable LP3 fit.
     """
     top_counties = (df_rp.dropna(subset=["Q100yr_best"])
                          .nlargest(n, "n_obs")["GEOID"].tolist())
@@ -440,7 +437,7 @@ def plot_frequency_curves(pk: pd.DataFrame, df_rp: pd.DataFrame, n=10):
 
     fig, axes = plt.subplots(2, 5, figsize=(20, 8), facecolor=PLOT_BG)
     fig.suptitle("Flood Frequency Curves — Top 10 Texas Counties by Data Density\n"
-                 "Empirical points (Weibull plotting positions) + GEV fit",
+                 "Empirical points (Weibull plotting positions) + LP3 fit",
                  fontsize=13, fontweight="bold", color=TEXT_COLOR)
 
     T_range = np.logspace(np.log10(1.01), np.log10(500), 200)
@@ -464,19 +461,20 @@ def plot_frequency_curves(pk: pd.DataFrame, df_rp: pd.DataFrame, n=10):
         ax.scatter(emp_T, sorted_q, color=color, s=18, zorder=5,
                    label="Observed annual max", alpha=0.8)
 
-        # GEV fitted curve
+        # LP3 fitted curve on log-transformed annual maxima
         try:
-            c, loc, scale = genextreme.fit(grp)
-            fit_q = genextreme.ppf(1 - 1/T_range, c, loc, scale)
+            log_grp = np.log(grp[grp > 0])
+            skew, loc, scale = pearson3.fit(log_grp)
+            fit_q = np.exp(pearson3.ppf(1 - 1/T_range, skew, loc, scale))
             ax.plot(T_range, fit_q, color=color, linewidth=2,
-                    label="GEV fit")
+                    label="LP3 fit")
         except Exception:
             pass
 
         # Mark T-year estimates
         rp_row = df_rp[df_rp["GEOID"] == geoid]
         for T, ls in [(10,"--"),(100,":")]:
-            col_name = f"Q{T}yr_gev"
+            col_name = f"Q{T}yr_lp3"
             if not rp_row.empty and col_name in rp_row.columns:
                 val = rp_row[col_name].values[0]
                 if pd.notna(val):
@@ -1038,7 +1036,7 @@ def build_final_risk_table(panel: pd.DataFrame,
                                          lambda x: (x > 0).sum())))
 
     df = hist.copy()
-    df = df.merge(df_rp[["GEOID","Q100yr_best","Q10yr_gev",
+    df = df.merge(df_rp[["GEOID","Q100yr_best","Q10yr_lp3",
                           "best_model","n_obs"]].drop_duplicates("GEOID"),
                   on="GEOID", how="left")
     if not impervious.empty:
@@ -1101,7 +1099,7 @@ if __name__ == "__main__":
         plot_frequency_curves(pk_hist, df_rp)
     except Exception as e:
         print(f"Flood frequency analysis failed: {e}")
-        df_rp = pd.DataFrame(columns=["GEOID","Q10yr_gev","Q10yr_lp3",
+        df_rp = pd.DataFrame(columns=["GEOID","Q10yr_lp3","Q10yr_gev",
                                        "Q100yr_best","best_model","n_obs"])
 
     # 3. Feature engineering 
