@@ -13,7 +13,7 @@ This project analyzes county-level damage from flooding in Texas, combining GIS 
 | FEMA OpenFEMA API | NFIP flood insurance claims by county, 2019–2024 | Public REST API |
 | USGS NWIS | Annual peak streamflow, all historical years | Public REST API |
 | Census TIGER | County boundaries | pygris |
-|  PRISM Data by converted by Robbie M Parks and Victoria D Lynch | Annual precipitation by county | Github Repo Access upon Reqest |
+|  PRISM Data by converted by Robbie M Parks and Victoria D Lynch | Annual precipitation by county | Github Repo Access upon Request |
 | Multi-Resolution Land Characteristics (MRLC) Consortium | Impervious surface % by county (2019) | Public download |
 | Census ACS 5-year | Median household income by county | Public REST API |
 
@@ -53,7 +53,7 @@ Two models are compared:
 * Random Forest with 5-fold cross-validation
 
 ## Resources
-This project draws on many resesarch papers working on flood risk assessment. 
+This project draws on many resesarch papers working on flood risk assessment and modeling. 
 
 * Del-Rosal-Salido et al. (2025), “A composite index framework for compound flood risk assessment”
 * Journal of Hydrology (2023), “Flood risk assessment using an indicator based approach combined with flood risk maps and grid data”
