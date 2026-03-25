@@ -182,7 +182,7 @@ annual observations are shown in grey. The color scale is capped at the 99th
 percentile for readability; East Texas river systems (Trinity, Neches, Sabine)
 show the highest estimated 100-year flows.](outputs/texas_return_period_map.png)
 
-The frequency curves below show GEV fits for the ten counties with the most
+The frequency curves below show LP3 fits for the ten counties with the most
 gauge observations. Empirical plotting positions follow the Weibull formula
 $p = m / (n + 1)$ where $m$ is rank in ascending order.
 
