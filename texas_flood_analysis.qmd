@@ -304,7 +304,7 @@ $$
 where:
 
 - **Exposure** = total NFIP claims across 2019–2024, normalized 0–100
-- **Hazard** = estimated Q100 return period flow, normalized 0–100
+- **Hazard** = estimated Q100 return period flow, log transformed then normalized 0–100 to account for skewness in water flow data
 - **Imperviousness** = mean impervious surface %, normalized 0–100
 - **Vulnerability** = inverse of median household income, normalized 0–100
   (lower income = higher vulnerability)
