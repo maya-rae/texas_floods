@@ -1051,8 +1051,15 @@ def build_final_risk_table(panel: pd.DataFrame,
         mn, mx = s.min(), s.max()
         return ((s - mn) / (mx - mn + 1e-9) * 100).round(1)
 
+    def norm100_log(s):
+        # Flood flows are extremely right-skewed, so log-scaling prevents one
+        # extreme county from swallowing the entire hazard index.
+        s = np.log1p(s.clip(lower=0))
+        mn, mx = s.min(), s.max()
+        return ((s - mn) / (mx - mn + 1e-9) * 100).round(1)
+
     df["exposure_idx"]     = norm100(df["total_claims"].fillna(0))
-    df["hazard_idx"]       = norm100(df["Q100yr_best"].fillna(0))
+    df["hazard_idx"]       = norm100_log(df["Q100yr_best"].fillna(0))
     df["imperv_idx"]       = norm100(df["impervious_pct"].fillna(0)) \
                              if "impervious_pct" in df.columns else 0
     # Income: lower income = higher vulnerability → invert
