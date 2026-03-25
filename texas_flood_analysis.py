@@ -719,17 +719,6 @@ def make_statewide_bar(gdf_panel: gpd.GeoDataFrame):
     ax2.yaxis.set_major_formatter(
         plt.FuncFormatter(lambda x,_: f"{x:,.0f}"))
 
-    # Annotate notable events
-    for ax in [ax1, ax2]:
-        ax.axvline(2021, color="#4fc3f7", linewidth=1.5,
-                   linestyle="--", alpha=0.8)
-        ax.text(2021.1, ax.get_ylim()[1]*0.92,
-                "Uri", color="#4fc3f7", fontsize=8)
-        ax.axvline(2024, color="#ff7043", linewidth=1.5,
-                   linestyle="--", alpha=0.8)
-        ax.text(2024.1, ax.get_ylim()[1]*0.92,
-                "Houston", color="#ff7043", fontsize=8)
-
     plt.tight_layout()
     path = "outputs/texas_flood_statewide.png"
     fig.savefig(path, dpi=150, bbox_inches="tight",
