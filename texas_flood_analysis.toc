@@ -1,0 +1,26 @@
+\contentsline {section}{\numberline {1}Overview}{2}{section.1}%
+\contentsline {section}{\numberline {2}Data Sources}{2}{section.2}%
+\contentsline {section}{\numberline {3}Part 1 --- Flood Exposure (2019--2024)}{3}{section.3}%
+\contentsline {subsection}{\numberline {3.1}FEMA NFIP Claims}{3}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}USGS Peak Streamflow}{3}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Composite Exposure Score}{3}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Maps}{4}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Statewide Trend}{5}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}County Time Series}{5}{subsection.3.6}%
+\contentsline {section}{\numberline {4}Part 2 --- Flood Frequency Analysis}{6}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Motivation}{6}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Method}{7}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Results}{8}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Part 3 --- Regression Model}{9}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Features}{9}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}OLS}{10}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Random Forest}{10}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Part 4 --- Temporal Holdout Validation}{11}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Why Temporal Holdout Matters}{11}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Results}{12}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Interpretation}{12}{subsection.6.3}%
+\contentsline {section}{\numberline {7}The remaining unexplained variance is likely due to the absence of event-level inputs. Incorporating NOAA storm footprints or FEMA disaster declaration indicators as county-year features would provide the spatial and temporal specificity that the current statewide precipitation anomaly lacks, and would likely be the single best addition for boosting holdout R² further.}{13}{section.7}%
+\contentsline {section}{\numberline {8}Part 5 --- Final Risk Index}{13}{section.8}%
+\contentsline {section}{\numberline {9}Limitations \& Next Steps}{13}{section.9}%
+\contentsline {section}{\numberline {10}Reproducibility}{14}{section.10}%
+\providecommand \tocbasic@end@toc@file {}\tocbasic@end@toc@file 
