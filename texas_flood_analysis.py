@@ -665,18 +665,9 @@ def make_timeseries(gdf_panel: gpd.GeoDataFrame):
         ax.yaxis.set_major_formatter(
             plt.FuncFormatter(lambda x,_: f"${x:.0f}M"))
 
-        # Mark notable event years
-        for ey in [2021, 2024]:
-            if ey in df_c["year"].values:
-                ax.axvline(ey, color="#ffaa00", linewidth=1,
-                           linestyle="--", alpha=0.7)
-
     # Hide unused subplot(s) if any
     for ax in axes.flat[len(top12):]:
         ax.set_visible(False)
-
-    fig.text(0.5, 0.01, "Year   |   Dashed lines = major flood years (2021 Uri, 2024 Houston)",
-             ha="center", color="#666", fontsize=9)
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.96])
     path = "outputs/texas_flood_timeseries.png"
