@@ -4,6 +4,7 @@ This project analyzes county-level damage from flooding in Texas, combining GIS 
 ## Structure
 * texas_flood_analysis.py - data pipeline and visualizations
 * texa_flood_risk_model.py - frequency analysis and regression model
+* texas_flood_analysis.qmd - comprehensive report on methods and results
 * outputs/ - all generated files are stored in this folder
 
 ## Data Sources
@@ -12,8 +13,8 @@ This project analyzes county-level damage from flooding in Texas, combining GIS 
 | FEMA OpenFEMA API | NFIP flood insurance claims by county, 2019–2024 | Public REST API |
 | USGS NWIS | Annual peak streamflow, all historical years | Public REST API |
 | Census TIGER | County boundaries | pygris |
-| NOAA CDO | Annual precipitation by station | Free token required |
-| EPA Smart Location Database | Impervious surface % by county | Public download |
+|  PRISM Data by converted by Robbie M Parks and Victoria D Lynch | Annual precipitation by county | Github Repo Access upon Reqest |
+| Multi-Resolution Land Characteristics (MRLC) Consortium | Impervious surface % by county (2019) | Public download |
 | Census ACS 5-year | Median household income by county | Public REST API |
 
 ## Methods
@@ -38,7 +39,7 @@ This weighting scheme is not statistically estimated and the resulting score sho
 Annual maximum peak flows per county are fitted to both a 
 Generalised Extreme Value (GEV) distribution and a Log-Pearson III 
 (LP3) distribution, which is the US federal standard per Bulletin 17C. 
-The better-fitting model (by AIC) is used to estimate Q10, Q50, 
+The better-fitting model (LP3) is used to estimate Q10, Q50, 
 and Q100 return period flows: the flow magnitude with a 1-in-10, 
 1-in-50, and 1-in-100 annual exceedance probability respectively.
 
@@ -48,27 +49,8 @@ Features: precipitation anomaly, impervious surface %, median
 household income, log(Q10 return period flow), year trend.
 
 Two models are compared:
-* OLS with HC3 heteroscedasticity-robust standard errors (R² = 0.17)
-* Random Forest with 5-fold cross-validation (CV R² = 0.52)
-
-The OLS–RF gap suggests meaningful non-linear threshold effects 
-and feature interactions, particularly between impervious surface 
-and precipitation anomaly.
-
-### Known Limitations
-* Precipitation anomaly is statewide, not county-level — the 
-  largest single driver of the low OLS R²
-* Impervious surface and income are static (2021 vintage), not 
-  time-varying
-* No event-level storm footprints; all aggregation is at county-year
-
-## Intended Outputs
-* texas_flood_grid.png             – static map separated by year
-* texas_flood_animated.gif         – animated choropleth 2019-2024
-* texas_flood_interactive.html     – folium interactive map
-* texas_flood_timeseries.png       – county-level time-series panel
-* texas_flood_statewide.png        - state-wide summary chart of damage in $
-* texas_flood_summary.csv          – cleaned merged dataset
+* OLS with HC3 heteroscedasticity-robust standard errors 
+* Random Forest with 5-fold cross-validation
 
 ## Resources
 This project draws on many resesarch papers working on flood risk assessment. 
@@ -76,4 +58,5 @@ This project draws on many resesarch papers working on flood risk assessment.
 * Del-Rosal-Salido et al. (2025), “A composite index framework for compound flood risk assessment”
 * Journal of Hydrology (2023), “Flood risk assessment using an indicator based approach combined with flood risk maps and grid data”
 * Lee and Choi (2018), “Comparison of Flood Vulnerability Assessments to Climate Change by Construction Frameworks for a Composite Indicator”
-* 
+* Wang Fenglin et al (2023). “Exploratory regression modeling for flood susceptibility mapping in the GIS environment”
+* Salas et al. (2023), "Learning inter-annual flood loss risk models from historical flood insurance claims"
