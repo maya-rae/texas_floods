@@ -285,6 +285,7 @@ The OLS holdout R² of 0.443 indicates that the linear relationships learned fro
 The Random Forest achieved a holdout R² of 0.603, which is an improvement over its 5-fold CV R² of 0.361. This suggests that the non-linear patterns it captured, particularly the interaction between impervious surface and flood hazard, are genuine and temporally stable rather than artifacts of overfitting to specific training years.
 
 The remaining unexplained variance is likely due to the absence of event-level inputs. Incorporating NOAA storm footprints or FEMA disaster declaration indicators as county-year features would provide the spatial and temporal specificity that the current statewide precipitation anomaly lacks, and would likely be the single best addition for boosting holdout R² further.
+
 ---
 
 ## Part 5 — Final Risk Index
