@@ -39,7 +39,7 @@ This weighting scheme is not statistically estimated and the resulting score sho
 Annual maximum peak flows per county are fitted to both a 
 Generalised Extreme Value (GEV) distribution and a Log-Pearson III 
 (LP3) distribution, which is the US federal standard per Bulletin 17C. 
-The better-fitting model (LP3) is used to estimate Q10, Q50, 
+The better-fitting model and US federal standard metric (LP3) is used to estimate Q10, Q50, 
 and Q100 return period flows: the flow magnitude with a 1-in-10, 
 1-in-50, and 1-in-100 annual exceedance probability respectively.
 
